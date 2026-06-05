@@ -104,8 +104,7 @@
                 const result = await model.generateContent(prompt);
                 const response = result.response;
                 // Limpiamos el texto por si la IA devuelve markdown (```json ...)
-                let textoJSON = response.text().replace(/
-```json/g, '').replace(/```/g, '').trim();
+                let textoJSON = response.text().split('json').join('').split('').join('').trim();
                 const datos = JSON.parse(textoJSON);
 
                 mostrarResultados(datos);
