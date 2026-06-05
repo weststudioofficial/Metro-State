@@ -1,1 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estado del Metro - Coyuya</title>
+    <!-- Tailwind CSS para el diseño -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-50 min-h-screen font-sans flex items-center justify-center p-4">
 
+    <div class="max-w-md w-full bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100">
+        <!-- Encabezado -->
+        <div class="bg-indigo-600 p-6 text-white text-center">
+            <h1 class="text-2xl font-bold mb-1">Ruta Segura 🤍</h1>
+            <p class="text-indigo-200 text-sm">Constitución de 1917 - Coyuya</p>
+        </div>
+
+        <!-- Contenedor Principal -->
+        <div class="p-6">
+            <p class="text-slate-600 text-sm text-center mb-6">Consulta el estado actual de la Línea 8 y Metrobús antes de salir.</p>
+
+            <!-- Botón de Consulta -->
+            <button id="btnConsultar" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-4 rounded-xl transition-all shadow-md flex justify-center items-center gap-2">
+                <i class="fas fa-subway"></i> Verificar Estado
+            </button>
+
+            <!-- Spinner de Carga (Oculto por defecto) -->
+            <div id="cargando" class="hidden mt-6 text-center">
+                <i class="fas fa-spinner fa-spin text-indigo-600 text-3xl mb-2"></i>
+                <p class="text-slate-500 text-sm">Analizando reportes de usuarios y redes...</p>
+            </div>
+
+            <!-- Resultados (Oculto por defecto) -->
+            <div id="resultados" class="hidden mt-6 space-y-4">
+                
+                <!-- Tarjeta de Estado General -->
+                <div id="tarjetaEstado" class="p-4 rounded-xl border flex items-center gap-4">
+                    <div id="iconoEstado" class="text-3xl"></div>
+                    <div>
+                        <p class="text-xs text-slate-500 uppercase font-bold tracking-wider">Estado General</p>
+                        <p id="textoEstado" class="text-lg font-bold text-slate-800"></p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <!-- Tarjeta de Afluencia -->
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                        <p class="text-xs text-slate-500 uppercase font-bold mb-1"><i class="fas fa-users text-slate-400"></i> Afluencia</p>
+                        <p id="textoAfluencia" class="font-semibold text-slate-700"></p>
+                    </div>
+
+                    <!-- Tarjeta de Tiempo -->
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                        <p class="text-xs text-slate-500 uppercase font-bold mb-1"><i class="fas fa-clock text-slate-400"></i> Espera</p>
+                        <p id="textoTiempo" class="font-semibold text-slate-700"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LÓGICA DE LA APLICACIÓN -->
+    <script type="module">
+        import { GoogleGenerativeAI } from "https://esm.run/@google/generativeai";
+
+        // ==========================================
+        // PEGA TU API KEY AQUÍ ABAJO (DENTRO DE LAS COMILLAS)
+        // ==========================================
+        const API_KEY = "TU_API_KEY_AQUI"; 
+        
+        const btnConsultar = document.getElementById('btnConsultar');
+        const cargando = document.getElementById('cargando');
+        const resultados = document.getElementById('resultados');
+        
+        btnConsultar.addEventListener('click', async () => {
+            if (API_KEY === "TU_API_KEY_AQUI") {
+                alert("Por favor, coloca tu API Key en el código antes de continuar.");
+                return;
+            }
+
+            // Ocultar botón y mostrar carga
+            btnConsultar.classList.add('hidden');
+            cargando.classList.remove('hidden');
+            resultados.classList.add('hidden');
+
+            try {
+                const genAI = new GoogleGenerativeAI(API_KEY);
+                const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+                const prompt = `
+                Eres un asistente experto en el transporte de CDMX. 
+                Evalúa el estado actual asumiendo datos recientes típicos de hora pico para la Línea 8 del Metro (Constitución de 1917) y estación Coyuya (Metro y Metrobús).
+                
+                Devuelve ÚNICAMENTE un objeto JSON estricto con esta estructura, sin texto adicional ni formato markdown:
+                {
+                    "estado": "Elige una: Colapsado, Lleno, Regular, Despejado",
+                    "afluencia": "Ej: Alta (Andenes llenos), Media, o Baja",
+                    "tiempo": "Ej: 5-8 minutos"
+                }`;
+
+                const result = await model.generateContent(prompt);
+                const response = result.response;
+                // Limpiamos el texto por si la IA devuelve markdown (```json ...)
+                let textoJSON = response.text().replace(/
+```json/g, '').replace(/```/g, '').trim();
+                const datos = JSON.parse(textoJSON);
+
+                mostrarResultados(datos);
+
+            } catch (error) {
+                console.error(error);
+                alert("Hubo un error al conectar con la IA. Revisa tu API Key.");
+                btnConsultar.classList.remove('hidden');
+            } finally {
+                cargando.classList.add('hidden');
+            }
+        });
+
+        function mostrarResultados(datos) {
+            const tarjetaEstado = document.getElementById('tarjetaEstado');
+            const iconoEstado = document.getElementById('iconoEstado');
+            
+            document.getElementById('textoEstado').innerText = datos.estado;
+            document.getElementById('textoAfluencia').innerText = datos.afluencia;
+            document.getElementById('textoTiempo').innerText = datos.tiempo;
+
+            // Cambiar colores según el estado
+            tarjetaEstado.className = "p-4 rounded-xl border flex items-center gap-4 transition-colors";
+            
+            if (datos.estado.includes("Colapsado")) {
+                tarjetaEstado.classList.add("bg-red-50", "border-red-200");
+                iconoEstado.innerHTML = "🚨";
+            } else if (datos.estado.includes("Lleno")) {
+                tarjetaEstado.classList.add("bg-orange-50", "border-orange-200");
+                iconoEstado.innerHTML = "⚠️";
+            } else if (datos.estado.includes("Regular")) {
+                tarjetaEstado.classList.add("bg-yellow-50", "border-yellow-200");
+                iconoEstado.innerHTML = "🚶";
+            } else {
+                tarjetaEstado.classList.add("bg-green-50", "border-green-200");
+                iconoEstado.innerHTML = "✅";
+            }
+
+            resultados.classList.remove('hidden');
+            btnConsultar.classList.remove('hidden');
+            btnConsultar.innerText = "Actualizar Estado";
+        }
+    </script>
+</body>
+</html>
